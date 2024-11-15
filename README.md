@@ -1,4 +1,4 @@
-# Exported Edge Impulse's Particle Library for loadcell-compensation-v2_inferencing
+# Exported Edge Impulse's Particle Library for loadcell-compensation-inferencing
 
 ## To use in Particle Workbench
 

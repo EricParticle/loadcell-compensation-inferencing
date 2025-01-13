@@ -1,13 +1,20 @@
 #include "Particle.h"
 #include "scale/scale.h"
+#include "temperature/temperature.h"
 #include <loadcell-compensation-v2_inferencing.h>
 
 SYSTEM_MODE(AUTOMATIC);
+PRODUCT_VERSION(1);
 
 #define SYS_DELAY_MS 100
+#define PUBLISH_INTERVAL 5000
 
 ScaleReading scaleReading = {0.0, 0};
+TemperatureReading temperatureReading = {0.0, 0.0};
+
 char buf[128];
+char payload[128];
+unsigned long lastPublish = 0;
 
 SerialLogHandler logHandler(LOG_LEVEL_ERROR);
 
@@ -65,6 +72,8 @@ float knownWeightValue = 0.0;
 void loop()
 {
     readScale(&scaleReading);
+    readTemperature(&temperatureReading);
+
     unsigned long timeSinceTare = getTimeSinceTare();
     features[idx] = scaleReading.weight;
     idx = (idx + 1) % EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE;
@@ -115,6 +124,14 @@ void loop()
     float raw_error = knownWeightValue - scaleReading.weight;
     snprintf(buf, sizeof(buf), "%ld,%ld,%f,%f,%f,%f", timeSinceTare, scaleReading.raw, scaleReading.weight, raw_error, compensated_weight, compensated_error);
     Serial.println(buf);
+
+    if ((millis() - lastPublish) > PUBLISH_INTERVAL)
+    {
+        snprintf(payload, sizeof(payload), "{\"timeSinceTare\":%ld,\"raw\":%ld,\"weight\":%f,\"error\":%f,\"degreesF\":%f}",
+                 timeSinceTare, scaleReading.raw, compensated_weight, compensated_error, temperatureReading.degreesF);
+        Particle.publish("data", payload);
+        lastPublish = millis();
+    }
 
     delay(SYS_DELAY_MS);
 }
